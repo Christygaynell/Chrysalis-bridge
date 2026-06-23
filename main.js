@@ -266,6 +266,116 @@ ipcMain.handle('test-chrysalis', async () => {
   }
 });
 
+// Settings — test Tebra connection with a real, visible browser login
+// Mirrors bridge.js's own login pattern but runs independently so a
+// failure here never affects the production polling logic in bridge.js
+ipcMain.handle('test-tebra', async () => {
+  const { chromium } = require('playwright');
+  const os = require('os');
+
+  const email    = creds.getTebraEmail();
+  const password = creds.getTebraPassword();
+
+  if (!email || !password) {
+    return { success: false, error: 'Enter both Tebra email and password first' };
+  }
+
+  const TEBRA_BASE = 'https://app.kareo.com';
+  const PROFILE_DIR = path.join(
+    os.homedir(), 'AppData', 'Local', 'ChrysalisBridge', 'TebraProfile'
+  );
+
+  let context;
+  try {
+    context = await chromium.launchPersistentContext(PROFILE_DIR, {
+      headless: false,
+      args: ['--no-sandbox','--disable-setuid-sandbox','--restore-last-session=false','--no-first-run'],
+      viewport: { width: 1100, height: 750 },
+    });
+
+    const page = await context.newPage();
+    await page.goto(TEBRA_BASE + '/v2/#/scheduling/dashboard', {
+      waitUntil: 'networkidle', timeout: 30000,
+    });
+    await page.waitForTimeout(3000);
+
+    const url = page.url();
+
+    if (url.includes('sign-in') || url.includes('login')) {
+      // Not already logged in — attempt login with the entered credentials
+      const emailInput = await page.$(
+        'input[type="email"], input[type="text"], input[name="email"], ' +
+        'input[placeholder*="email" i], input[placeholder*="username" i]'
+      );
+      if (!emailInput) {
+        await context.close();
+        return { success: false, error: 'Could not find Tebra login form — site may have changed' };
+      }
+      await emailInput.click({ clickCount: 3 });
+      await emailInput.type(email, { delay: 50 });
+
+      const passInput = await page.$('input[type="password"]');
+      if (!passInput) {
+        await context.close();
+        return { success: false, error: 'Could not find password field' };
+      }
+      await passInput.click({ clickCount: 3 });
+      await passInput.type(password, { delay: 50 });
+
+      const loginBtn = await page.$('button:has-text("Login"), button:has-text("Log in"), input[type="submit"]');
+      if (!loginBtn) {
+        await context.close();
+        return { success: false, error: 'Could not find login button' };
+      }
+      await loginBtn.click();
+
+      try {
+        await page.waitForNavigation({ waitUntil: 'networkidle', timeout: 20000 });
+      } catch(navErr) { /* some Tebra logins don't trigger a full navigation event */ }
+      await page.waitForTimeout(3000);
+
+      const finalUrl = page.url();
+      if (finalUrl.includes('sign-in') || finalUrl.includes('login')) {
+        await context.close();
+        return { success: false, error: 'Login failed — check your Tebra email and password' };
+      }
+    }
+
+    // If we reach here, either already logged in or login just succeeded
+    await page.waitForTimeout(1500);
+    await context.close();
+    return { success: true };
+
+  } catch(e) {
+    try { if (context) await context.close(); } catch(closeErr) {}
+    return { success: false, error: 'Connection test failed: ' + e.message };
+  }
+});
+// Reset Tebra connection — stops Bridge, deletes the stale browser
+// profile folder, leaves credentials intact so it logs in fresh next poll
+ipcMain.handle('reset-tebra-connection', async () => {
+  const fs = require('fs');
+  const os = require('os');
+
+  try {
+    if (bridgeRunning) stopBridge();
+
+    const profileDir = path.join(
+      os.homedir(), 'AppData', 'Local', 'ChrysalisBridge', 'TebraProfile'
+    );
+
+    if (fs.existsSync(profileDir)) {
+      fs.rmSync(profileDir, { recursive: true, force: true });
+    }
+
+    if (creds.isSetupComplete()) startBridge();
+
+    return { success: true };
+  } catch(e) {
+    return { success: false, error: e.message };
+  }
+});
+
 // Manual poll trigger from IPC
 ipcMain.handle('poll-now', async () => {
   if (!bridgeRunning) return { error: 'Bridge not running' };

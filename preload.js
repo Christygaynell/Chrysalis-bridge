@@ -6,6 +6,8 @@ contextBridge.exposeInMainWorld('bridge', {
   getSettings:     ()       => ipcRenderer.invoke('get-settings'),
   saveSettings:    (data)   => ipcRenderer.invoke('save-settings', data),
   testChrysalis:   ()       => ipcRenderer.invoke('test-chrysalis'),
+  testTebra:       ()       => ipcRenderer.invoke('test-tebra'),
+  resetTebraConnection: ()  => ipcRenderer.invoke('reset-tebra-connection'),
   pollNow:         ()       => ipcRenderer.invoke('poll-now'),
   startBridge:     ()       => ipcRenderer.invoke('start-bridge'),
   stopBridge:      ()       => ipcRenderer.invoke('stop-bridge'),
