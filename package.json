@@ -1,0 +1,57 @@
+{
+  "name": "chrysalis-bridge",
+  "version": "1.0.0",
+  "description": "Chrysalis Bridge — automatic EHR posting for Tebra",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "postinstall": "npx playwright install chromium",
+    "build": "npx playwright install chromium && electron-builder --win --x64",
+    "build-mac": "npx playwright install chromium && electron-builder --mac"
+  },
+  "build": {
+    "appId": "com.chrysalis.bridge",
+    "productName": "Chrysalis Bridge",
+    "copyright": "© 2026 Chrysalis Clinical Intelligence",
+    "win": {
+      "target": "nsis"
+    },
+    "mac": {
+      "target": "dmg"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "files": [
+      "main.js",
+      "bridge.js",
+      "credentials.js",
+      "preload.js",
+      "settings.html",
+      "log.html",
+      "node_modules/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "node_modules/playwright-core/.local-browsers",
+        "to": "playwright-browsers",
+        "filter": ["**/*"]
+      }
+    ],
+    "asarUnpack": [
+      "node_modules/playwright-core/**/*"
+    ]
+  },
+  "dependencies": {
+    "playwright": "^1.44.0",
+    "electron-store": "^8.1.0",
+    "node-fetch": "^2.7.0"
+  },
+  "devDependencies": {
+    "electron": "^30.0.0",
+    "electron-builder": "^24.13.0"
+  }
+}

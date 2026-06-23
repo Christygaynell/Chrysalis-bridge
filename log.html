@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Chrysalis Bridge — Activity Log</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Courier New', monospace;
+    background: #080b14; color: #94a3b8;
+    font-size: 12px; overflow: hidden;
+    display: flex; flex-direction: column; height: 100vh;
+  }
+  .toolbar {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 16px;
+    background: #0d1120; border-bottom: 1px solid rgba(255,255,255,.07);
+    flex-shrink: 0;
+  }
+  .toolbar-title { font-size: 13px; font-weight: 600; color: #eef2ff; flex: 1; }
+  button {
+    padding: 5px 12px; border: 1px solid rgba(255,255,255,.1);
+    background: #151c2e; color: #94a3b8; border-radius: 6px;
+    font-size: 11px; cursor: pointer;
+  }
+  button:hover { color: #eef2ff; }
+  #log {
+    flex: 1; overflow-y: auto; padding: 12px 16px;
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .entry {
+    display: flex; gap: 12px; padding: 3px 0;
+    border-bottom: 1px solid rgba(255,255,255,.03);
+  }
+  .time { color: #334155; flex-shrink: 0; }
+  .msg { flex: 1; }
+  .msg.info    { color: #94a3b8; }
+  .msg.success { color: #68d391; }
+  .msg.warn    { color: #f6ad55; }
+  .msg.error   { color: #fc8181; }
+  .empty { color: #334155; text-align: center; margin-top: 40px; }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <span class="toolbar-title">🦋 Chrysalis Bridge — Activity Log</span>
+  <button onclick="clearLog()">Clear</button>
+  <button onclick="window.bridge.pollNow()">Poll Now</button>
+</div>
+
+<div id="log">
+  <div class="empty" id="empty">No activity yet — Bridge will log events here</div>
+</div>
+
+<script>
+function addEntry(entry) {
+  const empty = document.getElementById('empty');
+  if (empty) empty.remove();
+
+  const log = document.getElementById('log');
+  const div = document.createElement('div');
+  div.className = 'entry';
+  div.innerHTML =
+    '<span class="time">' + entry.time + '</span>' +
+    '<span class="msg ' + (entry.level || 'info') + '">' + entry.message + '</span>';
+  log.appendChild(div);
+
+  // Auto-scroll to bottom
+  log.scrollTop = log.scrollHeight;
+}
+
+function clearLog() {
+  const log = document.getElementById('log');
+  log.innerHTML = '<div class="empty" id="empty">Log cleared</div>';
+}
+
+// Receive history on load
+window.bridge.onLogHistory((entries) => {
+  entries.forEach(addEntry);
+});
+
+// Receive new entries in real time
+window.bridge.onLogEntry((entry) => {
+  addEntry(entry);
+});
+</script>
+</body>
+</html>

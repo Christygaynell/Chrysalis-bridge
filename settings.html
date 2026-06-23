@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chrysalis Bridge — Settings</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #0d1120; color: #eef2ff;
+    padding: 24px; font-size: 14px;
+  }
+  .header {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 24px; padding-bottom: 16px;
+    border-bottom: 1px solid rgba(255,255,255,.08);
+  }
+  .logo { font-size: 28px; }
+  .title { font-size: 18px; font-weight: 700; }
+  .subtitle { font-size: 12px; color: #64748b; }
+
+  .section {
+    background: #151c2e; border: 1px solid rgba(255,255,255,.07);
+    border-radius: 10px; padding: 16px; margin-bottom: 16px;
+  }
+  .section-title {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .08em; color: #4fd1c5; margin-bottom: 12px;
+  }
+  label { display: block; font-size: 12px; color: #94a3b8; margin-bottom: 4px; }
+  input {
+    width: 100%; padding: 9px 12px; margin-bottom: 10px;
+    background: #0d1120; border: 1px solid rgba(255,255,255,.1);
+    border-radius: 7px; color: #eef2ff; font-size: 13px; outline: none;
+    transition: border-color .2s;
+  }
+  input:focus { border-color: #4fd1c5; }
+
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  .btn {
+    padding: 10px 20px; border: none; border-radius: 8px;
+    font-size: 13px; font-weight: 600; cursor: pointer;
+    transition: opacity .2s;
+  }
+  .btn:hover { opacity: .85; }
+  .btn-primary { background: linear-gradient(135deg,#4fd1c5,#38b2ac); color: #000; }
+  .btn-secondary { background: #1a2238; border: 1px solid rgba(255,255,255,.1); color: #eef2ff; }
+  .btn-danger { background: rgba(252,129,129,.15); border: 1px solid rgba(252,129,129,.3); color: #fc8181; }
+
+  .actions { display: flex; gap: 10px; margin-top: 16px; }
+
+  .status-bar {
+    padding: 10px 14px; border-radius: 8px; font-size: 13px;
+    margin-bottom: 16px; display: none;
+  }
+  .status-success { background: rgba(104,211,145,.1); border: 1px solid rgba(104,211,145,.3); color: #68d391; }
+  .status-error   { background: rgba(252,129,129,.1); border: 1px solid rgba(252,129,129,.3); color: #fc8181; }
+  .status-info    { background: rgba(79,209,197,.1);  border: 1px solid rgba(79,209,197,.3);  color: #4fd1c5; }
+
+  .bridge-status {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 14px; border-radius: 8px;
+    background: #151c2e; border: 1px solid rgba(255,255,255,.07);
+    margin-bottom: 16px;
+  }
+  .status-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: #64748b; flex-shrink: 0;
+  }
+  .status-dot.running { background: #4fd1c5; animation: pulse 2s infinite; }
+  .status-dot.error   { background: #fc8181; }
+  @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:.4;} }
+  .status-text { flex: 1; font-size: 13px; }
+  .status-label { font-weight: 600; }
+  .status-sub { font-size: 11px; color: #64748b; margin-top: 1px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">🦋</div>
+  <div>
+    <div class="title">Chrysalis Bridge</div>
+    <div class="subtitle">Automatic EHR posting for Tebra</div>
+  </div>
+</div>
+
+<!-- Bridge status -->
+<div class="bridge-status" id="bridgeStatusBar">
+  <div class="status-dot" id="statusDot"></div>
+  <div class="status-text">
+    <div class="status-label" id="statusLabel">Checking…</div>
+    <div class="status-sub" id="statusSub"></div>
+  </div>
+  <button class="btn btn-secondary" id="toggleBtn" onclick="toggleBridge()" style="padding:6px 14px;font-size:12px;">
+    —
+  </button>
+</div>
+
+<div id="statusBar" class="status-bar"></div>
+
+<!-- Chrysalis credentials -->
+<div class="section">
+  <div class="section-title">Chrysalis Account</div>
+  <label>Email</label>
+  <input type="email" id="chrysalisEmail" placeholder="doctor@practice.com">
+  <label>Password</label>
+  <input type="password" id="chrysalisPassword" placeholder="••••••••">
+  <button class="btn btn-secondary" onclick="testChrysalis()" style="font-size:12px;padding:7px 14px;">
+    Test Connection
+  </button>
+</div>
+
+<!-- Tebra credentials -->
+<div class="section">
+  <div class="section-title">Tebra (Kareo) Account</div>
+  <label>Email</label>
+  <input type="email" id="tebraEmail" placeholder="doctor@practice.com">
+  <label>Password</label>
+  <input type="password" id="tebraPassword" placeholder="••••••••">
+  <div style="font-size:11px;color:#475569;margin-top:-6px;">
+    Stored locally on this computer only. Never sent to Chrysalis servers.
+  </div>
+</div>
+
+<div class="actions">
+  <button class="btn btn-primary" onclick="saveSettings()">Save &amp; Apply</button>
+  <button class="btn btn-danger" onclick="clearAll()" style="margin-left:auto;font-size:12px;">
+    Clear All Credentials
+  </button>
+</div>
+
+<script>
+async function loadSettings() {
+  const s = await window.bridge.getSettings();
+
+  document.getElementById('chrysalisEmail').value    = s.chrysalisEmail    || '';
+  document.getElementById('chrysalisPassword').value = s.chrysalisPassword || '';
+  document.getElementById('tebraEmail').value        = s.tebraEmail        || '';
+  document.getElementById('tebraPassword').value     = s.tebraPassword     || '';
+
+  updateStatus(s.bridgeRunning);
+}
+
+function updateStatus(running) {
+  const dot   = document.getElementById('statusDot');
+  const label = document.getElementById('statusLabel');
+  const sub   = document.getElementById('statusSub');
+  const btn   = document.getElementById('toggleBtn');
+
+  if (running) {
+    dot.className   = 'status-dot running';
+    label.textContent = 'Bridge Running';
+    sub.textContent   = 'Polling every 60 seconds';
+    btn.textContent   = 'Pause';
+  } else {
+    dot.className   = 'status-dot';
+    label.textContent = 'Bridge Stopped';
+    sub.textContent   = 'Notes will not auto-post while paused';
+    btn.textContent   = 'Start';
+  }
+}
+
+function showStatus(msg, type = 'info') {
+  const bar = document.getElementById('statusBar');
+  bar.textContent  = msg;
+  bar.className    = 'status-bar status-' + type;
+  bar.style.display = 'block';
+  setTimeout(() => { bar.style.display = 'none'; }, 4000);
+}
+
+async function saveSettings() {
+  const data = {
+    chrysalisEmail:    document.getElementById('chrysalisEmail').value.trim(),
+    chrysalisPassword: document.getElementById('chrysalisPassword').value,
+    tebraEmail:        document.getElementById('tebraEmail').value.trim(),
+    tebraPassword:     document.getElementById('tebraPassword').value,
+  };
+
+  if (!data.chrysalisEmail || !data.tebraEmail) {
+    showStatus('Please enter both email addresses', 'error');
+    return;
+  }
+
+  const r = await window.bridge.saveSettings(data);
+  if (r.success) {
+    showStatus('Settings saved — Bridge will start automatically', 'success');
+    setTimeout(loadSettings, 1000);
+  }
+}
+
+async function testChrysalis() {
+  showStatus('Testing connection…', 'info');
+  const r = await window.bridge.testChrysalis();
+  if (r.success) {
+    showStatus('✓ Connected as ' + r.name, 'success');
+  } else {
+    showStatus('✗ ' + (r.error || 'Connection failed'), 'error');
+  }
+}
+
+async function toggleBridge() {
+  const status = await window.bridge.bridgeStatus();
+  if (status.running) {
+    await window.bridge.stopBridge();
+    showStatus('Bridge paused', 'info');
+  } else {
+    await window.bridge.startBridge();
+    showStatus('Bridge started', 'success');
+  }
+  setTimeout(loadSettings, 500);
+}
+
+async function clearAll() {
+  if (!confirm('Clear all saved credentials? Bridge will stop.')) return;
+  await window.bridge.stopBridge();
+  // Reload with empty fields
+  document.getElementById('chrysalisEmail').value    = '';
+  document.getElementById('chrysalisPassword').value = '';
+  document.getElementById('tebraEmail').value        = '';
+  document.getElementById('tebraPassword').value     = '';
+  showStatus('Credentials cleared', 'info');
+}
+
+loadSettings();
+</script>
+</body>
+</html>
